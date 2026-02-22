@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import parse_qs
 
 
 @dataclass(frozen=True)
@@ -45,22 +47,74 @@ def _env_json(name: str, default: dict[str, Any]) -> dict[str, Any]:
     return parsed
 
 
+def _normalize_actor_ref(actor_ref: str) -> str:
+    cleaned = actor_ref.strip()
+    if "/" in cleaned and "~" not in cleaned:
+        owner, name = cleaned.split("/", 1)
+        cleaned = f"{owner}~{name}"
+    if "~" not in cleaned:
+        raise ValueError("Invalid APIFY_ACTOR_ID format. Expected owner~name.")
+    owner, name = cleaned.split("~", 1)
+    if not owner.strip() or not name.strip():
+        raise ValueError("Invalid APIFY_ACTOR_ID format. Expected owner~name.")
+    return f"{owner.strip()}~{name.strip()}"
+
+
+def parse_apify_actor_ref(raw: str) -> tuple[str, str | None]:
+    value = raw.strip()
+
+    token: str | None = None
+
+    if "?" in value:
+        prefix, query = value.split("?", 1)
+        token_qs = parse_qs(query).get("token")
+        if token_qs:
+            token = token_qs[0].strip() or None
+        value = prefix.strip()
+
+    if "|" in value:
+        prefix, suffix = value.split("|", 1)
+        value = prefix.strip()
+        suffix_token = suffix.strip()
+        if suffix_token.lower().startswith("token="):
+            suffix_token = suffix_token.split("=", 1)[1].strip()
+        token = token or (suffix_token or None)
+
+    semicolon_match = re.match(r"^(?P<actor>[^;]+);\s*token=(?P<token>.+)$", value, re.IGNORECASE)
+    if semicolon_match:
+        value = semicolon_match.group("actor").strip()
+        token = token or semicolon_match.group("token").strip() or None
+
+    space_match = re.match(r"^(?P<actor>.+?)\s+token=(?P<token>.+)$", value, re.IGNORECASE)
+    if space_match:
+        value = space_match.group("actor").strip()
+        token = token or space_match.group("token").strip() or None
+
+    actor_ref = _normalize_actor_ref(value)
+    return actor_ref, token
+
+
 def load_settings() -> Settings:
     webhook = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-    token = os.getenv("APIFY_API_TOKEN", "").strip()
-    actor_id = os.getenv("APIFY_ACTOR_ID", "").strip()
+    actor_raw = os.getenv("APIFY_ACTOR_ID", "").strip()
 
     missing = [
         name
         for name, value in (
             ("DISCORD_WEBHOOK_URL", webhook),
-            ("APIFY_API_TOKEN", token),
-            ("APIFY_ACTOR_ID", actor_id),
+            ("APIFY_ACTOR_ID", actor_raw),
         )
         if not value
     ]
     if missing:
         raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+
+    actor_id, embedded_token = parse_apify_actor_ref(actor_raw)
+    token = os.getenv("APIFY_API_TOKEN", "").strip() or embedded_token
+    if not token:
+        raise ValueError(
+            "Missing Apify API token. Set APIFY_API_TOKEN secret or embed token in APIFY_ACTOR_ID."
+        )
 
     return Settings(
         discord_webhook_url=webhook,

@@ -12,7 +12,7 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 ## Required secrets and variables
 ### Secrets
 - `DISCORD_WEBHOOK_URL`
-- `APIFY_API_TOKEN`
+- `APIFY_API_TOKEN` (recommended)
 
 ### Variables
 - `APIFY_ACTOR_ID` (required)
@@ -25,13 +25,35 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 - `EXPECTED_MATCH_DURATION_MINUTES` (default `120`)
 - `LOG_LEVEL` (default `INFO`)
 
+## APIFY_ACTOR_ID supported formats
+The bot accepts either separate token (`APIFY_API_TOKEN`) or embedded token in `APIFY_ACTOR_ID`.
+
+Supported `APIFY_ACTOR_ID` formats:
+- `macheta/football-super-fast-data`
+- `macheta~football-super-fast-data`
+- `macheta/football-super-fast-data?token=XXXX`
+- `macheta~football-super-fast-data|XXXX`
+- `macheta~football-super-fast-data token=XXXX`
+
+Notes:
+- Recommended: keep `APIFY_API_TOKEN` in **Secrets**.
+- If you embed token in `APIFY_ACTOR_ID`, store `APIFY_ACTOR_ID` as a **Secret** (not Variable).
+- If both are present, `APIFY_API_TOKEN` overrides embedded token.
+
 ## Local usage
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-DISCORD_WEBHOOK_URL=... APIFY_API_TOKEN=... APIFY_ACTOR_ID=... python -m matchday_bot.main --mode slow --dry-run --dump-raw
-DISCORD_WEBHOOK_URL=... APIFY_API_TOKEN=... APIFY_ACTOR_ID=... python -m matchday_bot.main --mode fast --dry-run
+
+DISCORD_WEBHOOK_URL=... \
+APIFY_ACTOR_ID='macheta/football-super-fast-data?token=XXX' \
+python -m matchday_bot.main --mode slow --dry-run --dump-raw
+
+DISCORD_WEBHOOK_URL=... \
+APIFY_ACTOR_ID='macheta/football-super-fast-data' \
+APIFY_API_TOKEN='XXX' \
+python -m matchday_bot.main --mode fast --dry-run
 ```
 
 ## Workflows
