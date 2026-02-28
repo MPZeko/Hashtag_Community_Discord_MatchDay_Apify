@@ -15,7 +15,7 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 - `APIFY_API_TOKEN` (required unless token is embedded in `APIFY_ACTOR_ID`)
 
 ### Variables
-- `APIFY_ACTOR_ID` (optional; defaults to `macheta~football-super-fast-data`)
+- `APIFY_ACTOR_ID` (optional; defaults to `martin_sabo~football-fixtures-api`)
 - `APIFY_INPUT_JSON` (optional JSON object)
 - `TEAM_NAME` (default `Hashtag United`)
 - `TIMEZONE` (default `Europe/London`)
@@ -29,15 +29,15 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 The bot accepts either separate token (`APIFY_API_TOKEN`) or embedded token in `APIFY_ACTOR_ID`.
 
 Notes:
-- Default actor id in code: `macheta~football-super-fast-data`.
+- Default actor id in code: `martin_sabo~football-fixtures-api`.
 - Set `APIFY_ACTOR_ID` only when you want to override the default actor.
 
 Supported `APIFY_ACTOR_ID` formats:
-- `macheta/football-super-fast-data`
-- `macheta~football-super-fast-data`
-- `macheta/football-super-fast-data?token=XXXX`
-- `macheta~football-super-fast-data|XXXX`
-- `macheta~football-super-fast-data token=XXXX`
+- `martin_sabo/football-fixtures-api`
+- `martin_sabo~football-fixtures-api`
+- `martin_sabo/football-fixtures-api?token=XXXX`
+- `martin_sabo~football-fixtures-api|XXXX`
+- `martin_sabo~football-fixtures-api token=XXXX`
 
 Notes:
 - Recommended: keep `APIFY_API_TOKEN` in **Secrets**.
@@ -51,11 +51,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 DISCORD_WEBHOOK_URL=... \
-APIFY_ACTOR_ID='macheta/football-super-fast-data?token=XXX' \
+APIFY_ACTOR_ID='martin_sabo/football-fixtures-api?token=XXX' \
 python -m matchday_bot.main --mode slow --dry-run --dump-raw
 
 DISCORD_WEBHOOK_URL=... \
-APIFY_ACTOR_ID='macheta/football-super-fast-data' \
+APIFY_ACTOR_ID='martin_sabo/football-fixtures-api' \
 APIFY_API_TOKEN='XXX' \
 python -m matchday_bot.main --mode fast --dry-run
 ```
