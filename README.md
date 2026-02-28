@@ -65,3 +65,8 @@ python -m matchday_bot.main --mode fast --dry-run
 - `.github/workflows/matchday_fast.yml` — every 5 minutes + manual dispatch
 
 Both workflows auto-commit state updates to `state/matchday_state.json`.
+
+
+## LOG_LEVEL handling
+- `LOG_LEVEL` accepts standard names (`DEBUG`, `INFO`, `WARNING`/`WARN`, `ERROR`, `CRITICAL`) or numeric levels (e.g. `20`).
+- Missing, empty, or invalid values automatically fall back to `INFO` so runs do not fail.

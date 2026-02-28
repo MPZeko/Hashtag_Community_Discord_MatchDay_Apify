@@ -23,7 +23,7 @@ class Settings:
     fast_window_before_minutes: int
     fast_window_after_minutes: int
     expected_match_duration_minutes: int
-    log_level: str
+    log_level: int | str
 
 
 def _env_int(name: str, default: int) -> int:
@@ -47,6 +47,27 @@ def _env_json(name: str, default: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise ValueError(f"Environment variable {name} must be a JSON object")
     return parsed
+
+
+def normalize_log_level(raw: str | None) -> int | str:
+    if raw is None:
+        return "INFO"
+
+    value = raw.strip()
+    if not value:
+        return "INFO"
+
+    if value.isdigit():
+        return int(value)
+
+    name = value.upper()
+    allowed = {"CRITICAL", "ERROR", "WARNING", "WARN", "INFO", "DEBUG"}
+    if name not in allowed:
+        return "INFO"
+
+    if name == "WARN":
+        return "WARNING"
+    return name
 
 
 def _normalize_actor_ref(actor_ref: str) -> str:
@@ -109,6 +130,11 @@ def load_settings() -> Settings:
             "Missing Apify API token. Set APIFY_API_TOKEN secret or embed token in APIFY_ACTOR_ID."
         )
 
+    raw_level = os.getenv("LOG_LEVEL")
+    log_level = normalize_log_level(raw_level)
+    if raw_level and log_level == "INFO" and raw_level.strip().upper() not in {"INFO", "20"}:
+        logging.getLogger(__name__).warning("Invalid LOG_LEVEL provided; using INFO fallback.")
+
     return Settings(
         discord_webhook_url=webhook,
         apify_api_token=token,
@@ -120,12 +146,14 @@ def load_settings() -> Settings:
         fast_window_before_minutes=_env_int("FAST_WINDOW_BEFORE_MINUTES", 60),
         fast_window_after_minutes=_env_int("FAST_WINDOW_AFTER_MINUTES", 30),
         expected_match_duration_minutes=_env_int("EXPECTED_MATCH_DURATION_MINUTES", 120),
-        log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
+        log_level=log_level,
     )
 
 
-def configure_logging(level: str, run_id: str) -> None:
-    logging.basicConfig(
-        level=level,
-        format=f"%(asctime)s %(levelname)s run_id={run_id} %(name)s: %(message)s",
-    )
+def configure_logging(level: int | str, run_id: str) -> None:
+    fmt = f"%(asctime)s %(levelname)s [run_id={run_id}] %(name)s: %(message)s"
+    try:
+        logging.basicConfig(level=level, format=fmt)
+    except Exception:
+        logging.basicConfig(level=logging.INFO, format=fmt)
+        logging.getLogger(__name__).warning("Invalid LOG_LEVEL provided; falling back to INFO.")

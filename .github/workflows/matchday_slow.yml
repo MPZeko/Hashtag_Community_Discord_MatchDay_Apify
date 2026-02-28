@@ -26,7 +26,7 @@ jobs:
           APIFY_INPUT_JSON: ${{ vars.APIFY_INPUT_JSON }}
           TEAM_NAME: ${{ vars.TEAM_NAME }}
           TIMEZONE: ${{ vars.TIMEZONE }}
-          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
         run: python -m matchday_bot.main --mode slow
       - name: Commit state changes
         run: |
