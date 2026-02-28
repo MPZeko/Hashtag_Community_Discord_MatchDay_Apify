@@ -139,7 +139,7 @@ def load_settings() -> Settings:
         discord_webhook_url=webhook,
         apify_api_token=token,
         apify_actor_id=actor_id,
-        apify_input=_env_json("APIFY_INPUT_JSON", {"team": "Hashtag United"}),
+        apify_input=_env_json("APIFY_INPUT_JSON", {}),
         team_name=os.getenv("TEAM_NAME", "Hashtag United"),
         timezone=os.getenv("TIMEZONE", "Europe/London"),
         prematch_window_hours=_env_int("PREMATCH_WINDOW_HOURS", 24),

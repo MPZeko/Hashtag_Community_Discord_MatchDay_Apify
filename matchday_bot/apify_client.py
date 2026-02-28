@@ -12,6 +12,20 @@ class ApifyClient:
         self.token = token
         self.timeout_seconds = timeout_seconds
 
+    def _post_items(
+        self,
+        requests_mod: Any,
+        url: str,
+        params: dict[str, str],
+        payload: dict[str, Any],
+    ) -> Any:
+        return requests_mod.post(
+            url,
+            params=params,
+            json=payload,
+            timeout=self.timeout_seconds,
+        )
+
     def run_actor_items(
         self,
         actor_id: str,
@@ -24,15 +38,13 @@ class ApifyClient:
         params = {"token": self.token, "format": "json", "clean": "true"}
 
         backoff = 1.0
+        fallback_to_empty_input_done = False
+        payload = dict(actor_input)
+
         for attempt in range(1, max_retries + 1):
             start = time.monotonic()
             try:
-                response = requests.post(
-                    url,
-                    params=params,
-                    json=actor_input,
-                    timeout=self.timeout_seconds,
-                )
+                response = self._post_items(requests, url, params, payload)
             except requests.RequestException:
                 if attempt == max_retries:
                     raise
@@ -48,6 +60,14 @@ class ApifyClient:
                 elapsed_ms,
                 len(response.content),
             )
+
+            if response.status_code == 400 and payload and not fallback_to_empty_input_done:
+                fallback_to_empty_input_done = True
+                payload = {}
+                logger.warning(
+                    "Apify returned 400 for provided input; retrying once with empty input payload."
+                )
+                continue
 
             if response.status_code in (429, 500, 502, 503, 504):
                 if attempt == max_retries:

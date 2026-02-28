@@ -87,3 +87,13 @@ def test_load_settings_missing_token_message(monkeypatch: pytest.MonkeyPatch) ->
 
     with pytest.raises(ValueError, match="Missing Apify API token"):
         load_settings()
+
+
+def test_load_settings_default_apify_input_empty_dict(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.test")
+    monkeypatch.setenv("APIFY_API_TOKEN", "def")
+    monkeypatch.delenv("APIFY_INPUT_JSON", raising=False)
+
+    settings = load_settings()
+
+    assert settings.apify_input == {}

@@ -41,7 +41,7 @@ def _extract_team_name(value: Any) -> str:
 
 
 def _parse_kickoff(value: Any) -> datetime:
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         # Heuristic: ms epoch if very large
         if float(value) > 1e12:
             value = float(value) / 1000

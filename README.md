@@ -16,7 +16,7 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 
 ### Variables
 - `APIFY_ACTOR_ID` (optional; defaults to `martin_sabo~football-fixtures-api`)
-- `APIFY_INPUT_JSON` (optional JSON object)
+- `APIFY_INPUT_JSON` (optional JSON object, default `{}`)
 - `TEAM_NAME` (default `Hashtag United`)
 - `TIMEZONE` (default `Europe/London`)
 - `PREMATCH_WINDOW_HOURS` (default `24`)
@@ -43,6 +43,10 @@ Notes:
 - Recommended: keep `APIFY_API_TOKEN` in **Secrets**.
 - If you embed token in `APIFY_ACTOR_ID`, store `APIFY_ACTOR_ID` as a **Secret** (not Variable).
 - If both are present, `APIFY_API_TOKEN` overrides embedded token.
+
+## Actor input note
+By default the bot sends an empty actor input payload (`{}`).
+Set `APIFY_INPUT_JSON` only if your actor requires specific input fields.
 
 ## Local usage
 ```bash
