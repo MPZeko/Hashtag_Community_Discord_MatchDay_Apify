@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qs
 
+DEFAULT_APIFY_ACTOR_ID = "macheta~football-super-fast-data"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -62,7 +64,6 @@ def _normalize_actor_ref(actor_ref: str) -> str:
 
 def parse_apify_actor_ref(raw: str) -> tuple[str, str | None]:
     value = raw.strip()
-
     token: str | None = None
 
     if "?" in value:
@@ -96,18 +97,10 @@ def parse_apify_actor_ref(raw: str) -> tuple[str, str | None]:
 
 def load_settings() -> Settings:
     webhook = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-    actor_raw = os.getenv("APIFY_ACTOR_ID", "").strip()
+    actor_raw = os.getenv("APIFY_ACTOR_ID", "").strip() or DEFAULT_APIFY_ACTOR_ID
 
-    missing = [
-        name
-        for name, value in (
-            ("DISCORD_WEBHOOK_URL", webhook),
-            ("APIFY_ACTOR_ID", actor_raw),
-        )
-        if not value
-    ]
-    if missing:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+    if not webhook:
+        raise ValueError("Missing required environment variables: DISCORD_WEBHOOK_URL")
 
     actor_id, embedded_token = parse_apify_actor_ref(actor_raw)
     token = os.getenv("APIFY_API_TOKEN", "").strip() or embedded_token

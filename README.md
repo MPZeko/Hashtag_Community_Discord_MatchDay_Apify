@@ -12,10 +12,10 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 ## Required secrets and variables
 ### Secrets
 - `DISCORD_WEBHOOK_URL`
-- `APIFY_API_TOKEN` (recommended)
+- `APIFY_API_TOKEN` (required unless token is embedded in `APIFY_ACTOR_ID`)
 
 ### Variables
-- `APIFY_ACTOR_ID` (required)
+- `APIFY_ACTOR_ID` (optional; defaults to `macheta~football-super-fast-data`)
 - `APIFY_INPUT_JSON` (optional JSON object)
 - `TEAM_NAME` (default `Hashtag United`)
 - `TIMEZONE` (default `Europe/London`)
@@ -27,6 +27,10 @@ Discord webhook bot for Hashtag United matchday updates, powered by an Apify act
 
 ## APIFY_ACTOR_ID supported formats
 The bot accepts either separate token (`APIFY_API_TOKEN`) or embedded token in `APIFY_ACTOR_ID`.
+
+Notes:
+- Default actor id in code: `macheta~football-super-fast-data`.
+- Set `APIFY_ACTOR_ID` only when you want to override the default actor.
 
 Supported `APIFY_ACTOR_ID` formats:
 - `macheta/football-super-fast-data`
