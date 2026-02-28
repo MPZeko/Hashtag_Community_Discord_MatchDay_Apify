@@ -26,6 +26,59 @@ class ApifyClient:
             timeout=self.timeout_seconds,
         )
 
+    def _run_via_runs_endpoint(
+        self,
+        requests_mod: Any,
+        actor_id: str,
+        payload: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        run_resp = requests_mod.post(
+            f"https://api.apify.com/v2/acts/{actor_id}/runs",
+            params={"token": self.token},
+            json=payload,
+            timeout=self.timeout_seconds,
+        )
+        run_resp.raise_for_status()
+        run_data = run_resp.json().get("data", {})
+
+        run_id = str(run_data.get("id", ""))
+        dataset_id = run_data.get("defaultDatasetId")
+        status = str(run_data.get("status", ""))
+
+        timeout_at = time.time() + 120
+        terminal = {"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"}
+        while (not dataset_id or status not in terminal) and time.time() < timeout_at:
+            if not run_id:
+                break
+            poll = requests_mod.get(
+                f"https://api.apify.com/v2/actor-runs/{run_id}",
+                params={"token": self.token},
+                timeout=self.timeout_seconds,
+            )
+            poll.raise_for_status()
+            pdata = poll.json().get("data", {})
+            dataset_id = dataset_id or pdata.get("defaultDatasetId")
+            status = str(pdata.get("status", status))
+            if status in {"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"}:
+                break
+            time.sleep(2)
+
+        if status in {"FAILED", "ABORTED", "TIMED-OUT"}:
+            raise RuntimeError(f"Apify run failed with status={status}")
+        if not dataset_id:
+            raise RuntimeError("Apify run did not provide defaultDatasetId")
+
+        items_resp = requests_mod.get(
+            f"https://api.apify.com/v2/datasets/{dataset_id}/items",
+            params={"token": self.token, "format": "json", "clean": "true"},
+            timeout=self.timeout_seconds,
+        )
+        items_resp.raise_for_status()
+        items = items_resp.json()
+        if not isinstance(items, list) or not items:
+            raise ValueError("Apify returned empty dataset items")
+        return items
+
     def run_actor_items(
         self,
         actor_id: str,
@@ -68,6 +121,14 @@ class ApifyClient:
                     "Apify returned 400 for provided input; retrying once with empty input payload."
                 )
                 continue
+
+            if response.status_code == 400:
+                snippet = response.text[:200].replace("\n", " ")
+                logger.warning(
+                    "Apify run-sync endpoint returned 400; trying runs fallback. response=%s",
+                    snippet,
+                )
+                return self._run_via_runs_endpoint(requests, actor_id, payload)
 
             if response.status_code in (429, 500, 502, 503, 504):
                 if attempt == max_retries:
