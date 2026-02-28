@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qs
 
-DEFAULT_APIFY_ACTOR_ID = "martin_sabo~football-fixtures-api"
+DEFAULT_APIFY_ACTOR_ID = "statanow~flashscore-scraper-live"
 
 
 @dataclass(frozen=True)
