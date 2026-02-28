@@ -1,0 +1,36 @@
+name: Matchday Slow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */2 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  run-slow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run slow mode
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+          APIFY_ACTOR_ID: ${{ vars.APIFY_ACTOR_ID }}
+          APIFY_INPUT_JSON: ${{ vars.APIFY_INPUT_JSON }}
+          TEAM_NAME: ${{ vars.TEAM_NAME }}
+          TIMEZONE: ${{ vars.TIMEZONE }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
+        run: python -m matchday_bot.main --mode slow
+      - name: Commit state changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/matchday_state.json
+          git diff --cached --quiet || (git commit -m "Update matchday state" && git push)
