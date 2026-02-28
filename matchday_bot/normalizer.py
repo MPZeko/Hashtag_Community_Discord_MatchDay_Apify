@@ -34,11 +34,23 @@ def _coalesce(data: dict[str, Any], keys: list[str], default: Any = None) -> Any
     return default
 
 
+def _extract_team_name(value: Any) -> str:
+    if isinstance(value, dict):
+        return str(_coalesce(value, ["name", "teamName", "shortName"], "Unknown"))
+    return str(value)
+
+
 def _parse_kickoff(value: Any) -> datetime:
     if isinstance(value, (int, float)):
+        # Heuristic: ms epoch if very large
+        if float(value) > 1e12:
+            value = float(value) / 1000
         return datetime.fromtimestamp(float(value), tz=timezone.utc)
     if isinstance(value, str):
-        text = value.replace("Z", "+00:00")
+        text = value.strip().replace("Z", "+00:00")
+        # support common non-ISO shape
+        if " " in text and "T" not in text and "+" not in text:
+            text = text.replace(" ", "T")
         parsed = datetime.fromisoformat(text)
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
@@ -79,7 +91,14 @@ def _event_id(event: dict[str, Any]) -> str:
 def _parse_events(raw: Any) -> list[GoalEvent]:
     events: list[dict[str, Any]] = []
     if isinstance(raw, dict):
-        for key in ("events", "goals", "goalEvents", "homeGoals", "awayGoals"):
+        for key in (
+            "events",
+            "goals",
+            "goalEvents",
+            "homeGoals",
+            "awayGoals",
+            "incidentEvents",
+        ):
             value = raw.get(key)
             if isinstance(value, list):
                 events.extend([x for x in value if isinstance(x, dict)])
@@ -114,11 +133,25 @@ def _parse_events(raw: Any) -> list[GoalEvent]:
 
 def normalize_match(raw: dict[str, Any]) -> Match:
     kickoff = _parse_kickoff(
-        _coalesce(raw, ["startTimestamp", "kickoff", "kickoffTime", "utcTime"])
+        _coalesce(
+            raw,
+            [
+                "startTimestamp",
+                "kickoff",
+                "kickoffTime",
+                "kickoffUtc",
+                "utcTime",
+                "utcDate",
+                "matchDate",
+                "startTime",
+                "timestamp",
+            ],
+        )
     )
+
     match_id = str(_coalesce(raw, ["id", "matchId", "fixtureId", "eventId"], "unknown-match"))
-    home = str(_coalesce(raw, ["homeTeam", "home", "home_name"], "Home"))
-    away = str(_coalesce(raw, ["awayTeam", "away", "away_name"], "Away"))
+    home = _extract_team_name(_coalesce(raw, ["homeTeam", "home", "home_name"], "Home"))
+    away = _extract_team_name(_coalesce(raw, ["awayTeam", "away", "away_name"], "Away"))
 
     competition = _coalesce(raw, ["competition", "tournament", "league"], "Unknown competition")
     if isinstance(competition, dict):
@@ -130,8 +163,8 @@ def normalize_match(raw: dict[str, Any]) -> Match:
 
     return Match(
         match_id=match_id,
-        home_team=home,
-        away_team=away,
+        home_team=str(home),
+        away_team=str(away),
         competition_name=str(competition),
         round_name_or_number=str(round_raw) if round_raw is not None else None,
         kickoff=kickoff,
@@ -144,19 +177,48 @@ def normalize_match(raw: dict[str, Any]) -> Match:
     )
 
 
+def _iter_candidate_dicts(node: Any) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    stack: list[Any] = [node]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            candidates.append(current)
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+    return candidates
+
+
 def choose_next_match(items: list[dict[str, Any]], team_name: str) -> Match:
     matches: list[Match] = []
     for item in items:
-        if not isinstance(item, dict):
-            continue
-        try:
-            match = normalize_match(item)
-        except Exception:
-            logger.warning("schema mismatch while normalizing item", exc_info=True)
-            continue
-        teams = f"{match.home_team} {match.away_team}".lower()
-        if team_name.lower() in teams:
-            matches.append(match)
+        for candidate in _iter_candidate_dicts(item):
+            if not isinstance(candidate, dict):
+                continue
+            # cheap pre-filter to avoid noisy logs for unrelated dicts
+            if not any(
+                key in candidate
+                for key in (
+                    "homeTeam",
+                    "awayTeam",
+                    "home",
+                    "away",
+                    "startTimestamp",
+                    "kickoff",
+                    "utcDate",
+                    "matchDate",
+                )
+            ):
+                continue
+            try:
+                match = normalize_match(candidate)
+            except Exception:
+                logger.warning("schema mismatch while normalizing item", exc_info=True)
+                continue
+            teams = f"{match.home_team} {match.away_team}".lower()
+            if team_name.lower() in teams:
+                matches.append(match)
     if not matches:
         raise ValueError("No match found for configured team")
     return sorted(matches, key=lambda m: m.kickoff)[0]
